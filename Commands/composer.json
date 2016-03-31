@@ -1,0 +1,9 @@
+{
+  "name": "uberhacker/backup-all",
+  "description": "Terminus plugin to backup all available Pantheon sites simultaneously",
+  "homepage": "https://github.com/uberhacker/backup-all",
+  "license": "MIT",
+  "require": {
+    "php": ">=5.4"
+  },
+}
