@@ -12,11 +12,11 @@ $ terminus sites backup-all [--env=<id>] [--element=<element>] [--changes=<chang
 ```
 The associative arguments are all optional and the same filtering rules as the `terminus sites list` command apply.
 
-The --env argument value filters by environment and defaults to all.  Valid values also include dev, test, live or any valid multi-site environment.
+The **--env** argument value filters by environment and defaults to **all**.  Valid values also include **dev, test, live** or any valid multi-site environment.
 
-The --element argument value filters by element and defaults to all.  Valid values also include code, database or files.
+The **--element** argument value filters by element and defaults to **all**.  Valid values also include **code, database or files**.
 
-The --changes argument is only necessary when the environment is in sftp connection mode and decides how to handle pending filesystem changes.  Valid values include commit, ignore or skip.
+The **--changes** argument is only necessary when the environment is in sftp connection mode and decides how to handle pending filesystem changes.  Valid values include **commit, ignore or skip**.  The difference between **ignore** and **skip** is **ignore** will continue and make the backup anyway *(without pending filesystem changes)*, whereas **skip** will not.
 
 ## Examples:
 ```
