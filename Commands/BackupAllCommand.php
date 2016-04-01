@@ -281,14 +281,19 @@ class BackupAllCommand extends TerminusCommand {
       if (in_array($element, $valid_elements)) {
         $diff = (array)$env->diffstat();
         if (!empty($diff)) {
-          if ($changes == 'commit') {
-            $this->log()->notice("Start automatic backup commit for $environ environment of $name site.");
-            $env->commit();
-            $this->log()->notice("End automatic backup commit for $environ environment of $name site.");
-          }
-          if ($changes == 'skip') {
-            $this->log()->notice("Automatic backup commit skipped for $element in $environ environment of $name site because there are pending filesystem changes.");
-            $backup = false;
+          switch ($changes) {
+            case 'commit':
+              $this->log()->notice("Start automatic backup commit for $environ environment of $name site.");
+              $env->commit();
+              $this->log()->notice("End automatic backup commit for $environ environment of $name site.");
+              break;
+            case 'ignore':
+              $this->log()->notice("Automatic backup commit ignored for $element in $environ environment of $name site. Note there are still pending filesystem changes that will not be included in the backup.");
+              break;
+            case 'skip':
+              $this->log()->notice("Automatic backup commit skipped for $element in $environ environment of $name site. Note there are still pending filesystem changes and the backup has been aborted.");
+              $backup = false;
+              break;
           }
         }
       }
