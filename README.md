@@ -16,7 +16,7 @@ The **--env** argument value filters by environment and defaults to **all**.  Va
 
 The **--element** argument value filters by element and defaults to **all**.  Valid values also include **code, database or files**.
 
-The **--changes** argument is only necessary when the environment is in sftp connection mode and decides how to handle pending filesystem changes.  Valid values include **commit, ignore or skip**.  The difference between **ignore** and **skip** is **ignore** will continue and make the backup anyway *(without pending filesystem changes)*, whereas **skip** will not.
+The **--changes** argument is only necessary when the environment is in sftp connection mode and decides how to handle pending filesystem changes.  Valid values include **commit, ignore or skip** and the default is **commit** which will create an automatic commit of any pending filesystem changes before completing the backup.  The difference between **ignore** and **skip** is **ignore** will continue and make the backup anyway *(without pending filesystem changes)*, whereas **skip** will not.
 
 ## Examples:
 ```
