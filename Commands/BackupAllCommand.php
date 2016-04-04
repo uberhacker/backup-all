@@ -284,7 +284,7 @@ class BackupAllCommand extends TerminusCommand {
           switch ($changes) {
             case 'commit':
               $this->log()->notice("Start automatic backup commit for $environ environment of $name site.");
-              $env->commit();
+              $workflow = $env->commitChanges("Automatic backup commit of pending filesystem changes");
               $this->log()->notice("End automatic backup commit for $environ environment of $name site.");
               break;
             case 'ignore':
