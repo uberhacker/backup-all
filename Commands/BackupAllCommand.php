@@ -22,7 +22,7 @@ class BackupAllCommand extends TerminusCommand {
   public $sites;
 
   /**
-   * Backup all your available Pantheon sites simultaneously.
+   * Backup all your available Pantheon sites simultaneously
    *
    * @param array $options Options to construct the command object
    * @return BackupAllCommand
@@ -34,7 +34,7 @@ class BackupAllCommand extends TerminusCommand {
   }
 
   /**
-   * Backup all sites user has access to
+   * Backup all your available Pantheon sites simultaneously
    * Note: because of the size of this call, it is cached
    *   and also is the basis for loading individual sites by name
    *
@@ -64,6 +64,10 @@ class BackupAllCommand extends TerminusCommand {
    *
    * @subcommand backup-all
    * @alias ba
+   *
+   * @param array $args Array of plugin names
+   * @param array $assoc_args Array of backup options
+   *
    */
   public function index($args, $assoc_args) {
     // Always fetch a fresh list of sites.
