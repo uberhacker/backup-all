@@ -45,7 +45,8 @@ class BackupAllCommand extends TerminusCommand {
    * : Filter sites by element (code, database or files).  Use 'all' or exclude to get all.
    *
    * [--changes=<change>]
-   * : How to handle pending filesystem changes in sftp connection mode (commit, ignore or skip).  Default is commit.
+   * : How to handle pending filesystem changes in sftp connection mode (commit, ignore or skip).
+   *   Default is commit.
    *
    * [--team]
    * : Filter for sites you are a team member of
@@ -65,65 +66,69 @@ class BackupAllCommand extends TerminusCommand {
    * @subcommand backup-all
    * @alias ba
    *
-   * @param array $args Array of plugin names
+   * @param array $args       Array of plugin names
    * @param array $assoc_args Array of backup options
    *
+   * @return null
    */
   public function index($args, $assoc_args) {
-    // Always fetch a fresh list of sites.
-    if (!isset($assoc_args['cached'])) {
-      $this->sites->rebuildCache();
-    }
-    $sites = $this->sites->all();
-
     // Validate the --element argument value.
     $valid_elements = array('all', 'code', 'database', 'files');
-    $element = isset($assoc_args['element']) ? $assoc_args['element'] : 'all';
+    $element = 'all';
+    if (isset($assoc_args['element'])) {
+      $element = $assoc_args['element'];
+    }
     if (!in_array($element, $valid_elements)) {
-      $message = 'Invalid --element argument value. Allowed values are all, code, database or files.';
+      $message = 'Invalid --element argument value. Valid values are all, code, database or files.';
       $this->failure($message);
     }
 
     // Validate the --changes argument value.
     $valid_changes = array('commit', 'ignore', 'skip');
-    $changes = isset($assoc_args['changes']) ? $assoc_args['changes'] : 'commit';
+    $changes = 'commit';
+    if (isset($assoc_args['changes'])) {
+      $changes = $assoc_args['changes'];
+    }
     if (!in_array($changes, $valid_changes)) {
       $message = 'Invalid --changes argument value.  Allowed values are commit, ignore or skip.';
       $this->failure($message);
     }
 
-    if (isset($assoc_args['team'])) {
-      $sites = $this->filterByTeamMembership($sites);
-    }
-    if (isset($assoc_args['org'])) {
-      $org_id = $this->input()->orgId(
+    $options = [
+      'org_id'    => $this->input()->optional(
         [
-          'allow_none' => true,
-          'args'       => $assoc_args,
-          'default'    => 'all',
+          'choices' => $assoc_args,
+          'default' => null,
+          'key'     => 'org',
         ]
-      );
-      $sites = $this->filterByOrganizationalMembership($sites, $org_id);
-    }
+      ),
+      'team_only' => isset($assoc_args['team']),
+    ];
+    $this->sites->fetch($options);
 
     if (isset($assoc_args['name'])) {
-      $sites = $this->filterByName($sites, $assoc_args['name']);
+      $this->sites->filterByName($assoc_args['name']);
     }
 
     if (isset($assoc_args['owner'])) {
       $owner_uuid = $assoc_args['owner'];
       if ($owner_uuid == 'me') {
-        $owner_uuid = Session::getData()->user_uuid;
+        $owner_uuid = $this->user->id;
       }
-      $sites = $this->filterByOwner($sites, $owner_uuid);
+      $this->sites->filterByOwner($owner_uuid);
     }
+
+    $sites = $this->sites->all();
 
     if (count($sites) == 0) {
       $this->log()->warning('You have no sites.');
     }
 
     // Validate the --env argument value, if needed.
-    $env = isset($assoc_args['env']) ? $assoc_args['env'] : 'all';
+    $env = 'all';
+    if (isset($assoc_args['env'])) {
+      $env = $assoc_args['env'];
+    }
     $valid_env = ($env == 'all');
     if (!$valid_env) {
       foreach ($sites as $site) {
@@ -141,7 +146,8 @@ class BackupAllCommand extends TerminusCommand {
       }
     }
     if (!$valid_env) {
-      $message = 'Invalid --env argument value. Allowed values are dev, test, live or a valid multi-site environment.';
+      $message = 'Invalid --env argument value. Allowed values are dev, test, live';
+      $message .= ' or a valid multi-site environment.';
       $this->failure($message);
     }
 
@@ -160,8 +166,7 @@ class BackupAllCommand extends TerminusCommand {
           );
           $this->backup($args);
         }
-      }
-      else {
+      } else {
         $args = array(
           'name'    => $name,
           'env'     => $env,
@@ -174,94 +179,11 @@ class BackupAllCommand extends TerminusCommand {
   }
 
   /**
-   * Filters an array of sites by whether the user is an organizational member
-   *
-   * @param Site[] $sites An array of sites to filter by
-   * @param string $regex Non-delimited PHP regex to filter site names by
-   * @return Site[]
-   */
-  private function filterByName($sites, $regex = '(.*)') {
-    $filtered_sites = array_filter(
-      $sites,
-      function($site) use ($regex) {
-        preg_match("~$regex~", $site->get('name'), $matches);
-        $is_match = !empty($matches);
-        return $is_match;
-      }
-    );
-    return $filtered_sites;
-  }
-
-  /**
-   * Filters an array of sites by whether the user is an organizational member
-   *
-   * @param Site[] $sites      An array of sites to filter by
-   * @param string $owner_uuid UUID of the owning user to filter by
-   * @return Site[]
-   */
-  private function filterByOwner($sites, $owner_uuid) {
-    $filtered_sites = array_filter(
-      $sites,
-      function($site) use ($owner_uuid) {
-        $is_owner = ($site->get('owner') == $owner_uuid);
-        return $is_owner;
-      }
-    );
-    return $filtered_sites;
-  }
-
-  /**
-   * Filters an array of sites by whether the user is an organizational member
-   *
-   * @param Site[] $sites  An array of sites to filter by
-   * @param string $org_id ID of the organization to filter for
-   * @return Site[]
-   */
-  private function filterByOrganizationalMembership($sites, $org_id = 'all') {
-    $filtered_sites = array_filter(
-      $sites,
-      function($site) use ($org_id) {
-        $memberships    = $site->get('memberships');
-        foreach ($memberships as $membership) {
-          if ((($org_id == 'all') && ($membership['type'] == 'organization'))
-            || ($membership['id'] === $org_id)
-          ) {
-            return true;
-          }
-        }
-        return false;
-      }
-    );
-    return $filtered_sites;
-  }
-
-  /**
-   * Filters an array of sites by whether the user is a team member
-   *
-   * @param Site[] $sites An array of sites to filter by
-   * @return Site[]
-   */
-  private function filterByTeamMembership($sites) {
-    $filtered_sites = array_filter(
-      $sites,
-      function($site) {
-        $memberships    = $site->get('memberships');
-        foreach ($memberships as $membership) {
-          if ($membership['name'] == 'Team') {
-            return true;
-          }
-        }
-        return false;
-      }
-    );
-    return $filtered_sites;
-  }
-
-  /**
    * Perform the backup of a specific site and environment.
    *
-   * @param array $args
-   *   The site environment arguments.
+   * @param array $args The site environment arguments.
+   *
+   * @return null
    */
   private function backup($args) {
     $name = $args['name'];
@@ -287,28 +209,58 @@ class BackupAllCommand extends TerminusCommand {
         if (!empty($diff)) {
           switch ($changes) {
             case 'commit':
-              $this->log()->notice("Start automatic backup commit for $environ environment of $name site.");
-              $workflow = $env->commitChanges("Automatic backup commit of pending filesystem changes");
-              $this->log()->notice("End automatic backup commit for $environ environment of $name site.");
-              break;
+              $message = 'Start automatic backup commit for {environ} environment of {name} site.';
+              $this->log()->notice(
+                $message,
+                ['environ' => $environ, 'name' => $name,]
+              );
+              $message = 'Automatic backup commit of pending filesystem changes';
+              $workflow = $env->commitChanges($message);
+              $message = 'End automatic backup commit for {environ} environment of {name} site.';
+              $this->log()->notice(
+                $message,
+                ['environ' => $environ, 'name' => $name,]
+              );
+                break;
             case 'ignore':
-              $this->log()->notice("Automatic backup commit ignored for $element in $environ environment of $name site. Note there are still pending filesystem changes that will not be included in the backup.");
-              break;
+              $message = "Automatic backup commit ignored for {element} in {environ} environment";
+              $message .= " of {name} site.  Note there are still pending filesystem changes that";
+              $message .= " will not be included in the backup.";
+              $this->log()->notice(
+                $message,
+                ['element' => $element, 'environ' => $environ, 'name' => $name,]
+              );
+                break;
             case 'skip':
-              $this->log()->notice("Automatic backup commit skipped for $element in $environ environment of $name site. Note there are still pending filesystem changes and the backup has been aborted.");
+              $message = 'Automatic backup commit skipped for {element} in {environ} environment';
+              $message .= ' of {name} site. Note there are still pending filesystem changes and';
+              $message .= ' the backup has been aborted.';
+              $this->log()->notice(
+                $message,
+                ['element' => $element, 'environ' => $environ, 'name' => $name,]
+              );
               $backup = false;
-              break;
+                break;
           }
         }
       }
     }
     if ($backup) {
-      $this->log()->notice("Start backup for $element in $environ environment of $name site.");
+      $message = 'Start backup for {element} in {environ} environment of {name} site.';
+      $this->log()->notice(
+        $message,
+        ['element' => $element, 'environ' => $environ, 'name' => $name,]
+      );
       $args = array(
         'element' => $element,
       );
       $workflow = $env->backups->create($args);
-      $this->log()->notice("End backup for $element in $environ environment of $name site.");
+      $message = 'End backup for {element} in {environ} environment of {name} site.';
+      $this->log()->notice(
+        $message,
+        ['element' => $element, 'environ' => $environ, 'name' => $name,]
+      );
     }
   }
+
 }
