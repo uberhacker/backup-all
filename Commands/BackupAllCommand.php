@@ -201,7 +201,7 @@ class BackupAllCommand extends TerminusCommand {
       $this->input()->env(array('args' => $assoc_args, 'site' => $site))
     );
     $backup = true;
-    $mode = $env->info('connection_mode');
+    $mode = $env->get('connection_mode');
     if ($mode == 'sftp') {
       $valid_elements = array('all', 'code');
       if (in_array($element, $valid_elements)) {
